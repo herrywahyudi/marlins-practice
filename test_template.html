@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+const ANTHROPIC_API_KEY = "__ANTHROPIC_API_KEY__";
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#1a1a2e;font-size:15px}
+#app{padding:1rem;max-width:720px;margin:0 auto}
+.screen{display:none}.screen.active{display:block}
+
+.cover{padding:1.5rem 0;text-align:center}
+.logo-bar{display:inline-flex;align-items:center;gap:10px;padding:10px 20px;background:#0d3b6e;border-radius:10px;margin-bottom:1.25rem}
+.logo-bar span{color:#fff;font-size:15px;font-weight:500}
+.cover h1{font-size:22px;font-weight:600;margin-bottom:6px;color:#0d3b6e}
+.cover-sub{font-size:14px;color:#666;line-height:1.6;margin-bottom:1.25rem}
+.notice-box{background:#fff8e1;border:1px solid #f0c040;border-radius:8px;padding:12px 14px;margin-bottom:1.25rem;text-align:left}
+.notice-box p{font-size:12px;color:#7a5c00;line-height:1.65}
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem}
+.type-card{border:1px solid #dde3ed;border-radius:10px;padding:14px;cursor:pointer;background:#fff;text-align:left;transition:all .12s}
+.type-card:hover,.type-card.sel{border:2px solid #0d3b6e;background:#e8f0fb}
+.tc-name{font-size:14px;font-weight:600;margin-bottom:4px;color:#1a1a2e}
+.tc-meta{font-size:12px;color:#888}
+.struct-table{width:100%;border-collapse:collapse;margin-bottom:1.25rem;font-size:13px}
+.struct-table th{background:#f0f4f8;padding:8px 10px;text-align:left;font-weight:600;border-bottom:1px solid #dde3ed;color:#0d3b6e}
+.struct-table td{padding:8px 10px;border-bottom:1px solid #f0f4f8;color:#1a1a2e}
+.struct-table tr:last-child td{font-weight:600;background:#f0f4f8}
+.num{text-align:right;color:#0d3b6e;font-weight:600}
+.btn-main{width:100%;padding:14px;background:#0d3b6e;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:background .1s}
+.btn-main:hover{background:#1050a0}
+.footnote{font-size:11px;color:#999;margin-top:1rem;line-height:1.6;border-top:1px solid #eee;padding-top:10px}
+
+.gen-screen{padding:3rem 1rem;text-align:center}
+.gen-spinner{width:52px;height:52px;border:3px solid #eee;border-top-color:#0d3b6e;border-radius:50%;animation:spin .9s linear infinite;margin:0 auto 1.25rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.gen-title{font-size:16px;font-weight:600;margin-bottom:6px;color:#0d3b6e}
+.gen-sub{font-size:13px;color:#888;margin-bottom:1.5rem}
+.gen-steps{background:#f8f9fa;border-radius:10px;padding:1rem;max-width:400px;margin:0 auto;text-align:left;border:1px solid #eee}
+.gen-step{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;color:#999;border-bottom:1px solid #f0f0f0}
+.gen-step:last-child{border:none}
+.gen-step.done{color:#1a1a2e}
+.gen-step.active{color:#0d3b6e;font-weight:600}
+.step-ico{width:20px;text-align:center}
+
+.sec-intro{padding:2rem 0}
+.sec-icon{width:64px;height:64px;border-radius:50%;background:#e8f0fb;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:30px}
+.sec-intro h2{text-align:center;font-size:20px;font-weight:600;margin-bottom:6px;color:#0d3b6e}
+.sec-sub{text-align:center;font-size:14px;color:#666;line-height:1.6;margin-bottom:1.25rem}
+.sec-info{background:#f8f9fa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;border:1px solid #eee}
+.sec-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
+.sec-row:last-child{border:none}
+.sk{color:#888}.sv{font-weight:600}
+
+.t-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:1px solid #eee;margin-bottom:1rem}
+.sec-pill{display:inline-block;font-size:11px;padding:3px 10px;border-radius:20px;background:#e8f0fb;color:#0d3b6e;margin-bottom:4px;font-weight:600}
+.q-counter{font-size:13px;color:#888}
+.qtype-note{font-size:11px;color:#aaa;margin-top:2px}
+.elapsed-lbl{font-size:10px;color:#aaa;text-align:right;text-transform:uppercase;letter-spacing:.05em}
+.elapsed-val{font-size:18px;font-weight:600;text-align:right;color:#1a1a2e;font-variant-numeric:tabular-nums}
+.dots{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:1.25rem}
+.dot{height:4px;flex:1;min-width:4px;border-radius:2px;background:#eee}
+.dot.done{background:#0d3b6e}.dot.cur{background:#6b9fd4}.dot.skip{background:#e0a800}
+
+.qtype-lbl{font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.q-text{font-size:16px;font-weight:600;line-height:1.55;margin-bottom:1.25rem;color:#1a1a2e}
+.q-instr{font-size:13px;color:#888;margin-bottom:10px;font-style:italic;line-height:1.5}
+
+.opts{display:flex;flex-direction:column;gap:8px;margin-bottom:1.25rem}
+.opt{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1px solid #dde3ed;border-radius:10px;cursor:pointer;background:#fff;transition:all .1s}
+.opt:hover:not(.lk){border-color:#0d3b6e;background:#e8f0fb}
+.opt.sel{border:2px solid #0d3b6e;background:#e8f0fb}
+.opt.ok{border:2px solid #276d3a;background:#e6f4ea}
+.opt.bad{border:2px solid #9b2e2e;background:#fce8e8}
+.opt.lk{cursor:default}
+.ok-key{width:28px;height:28px;min-width:28px;border-radius:50%;border:1px solid #dde3ed;background:#f0f4f8;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#888;flex-shrink:0}
+.opt.sel .ok-key{background:#0d3b6e;color:#fff;border-color:#0d3b6e}
+.opt.ok .ok-key{background:#276d3a;color:#fff;border-color:#276d3a}
+.opt.bad .ok-key{background:#9b2e2e;color:#fff;border-color:#9b2e2e}
+.ot{font-size:14px;color:#1a1a2e;line-height:1.5;padding-top:4px}
+
+.audio-card{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f8f9fa;border-radius:10px;border:1px solid #dde3ed;margin-bottom:1.25rem}
+.pbtn{width:42px;height:42px;border-radius:50%;background:#0d3b6e;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;color:#fff;transition:background .1s}
+.pbtn:hover{background:#1050a0}.pbtn:disabled{background:#ccc;cursor:not-allowed}
+.ainfo{flex:1}.atitle{font-size:13px;font-weight:600;color:#1a1a2e}.asub{font-size:11px;color:#888;margin-top:2px}
+.plays-badge{font-size:11px;padding:3px 9px;border-radius:20px;background:#fff;border:1px solid #dde3ed;color:#888;white-space:nowrap;flex-shrink:0}
+.plays-badge.used{border-color:#e0a800;color:#7a5c00;background:#fff8e1}
+.plays-badge.gone{border-color:#e88a8a;color:#6b1a1a;background:#fce8e8}
+
+.sent-completion{font-size:16px;font-weight:600;line-height:1.8;margin-bottom:1.25rem;padding:14px;background:#f8f9fa;border-radius:10px;border:1px solid #dde3ed}
+.sent-blank{display:inline-block;min-width:80px;border-bottom:2px solid #0d3b6e;text-align:center;margin:0 4px;color:#0d3b6e}
+.two-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem}
+.two-opt{padding:14px;border:1px solid #dde3ed;border-radius:10px;cursor:pointer;text-align:center;font-size:15px;font-weight:600;background:#fff;transition:all .1s}
+.two-opt:hover:not(.lk){border-color:#0d3b6e;background:#e8f0fb}
+.two-opt.sel{border:2px solid #0d3b6e;background:#e8f0fb;color:#0d3b6e}
+.two-opt.ok{border:2px solid #276d3a;background:#e6f4ea;color:#276d3a}
+.two-opt.bad{border:2px solid #9b2e2e;background:#fce8e8;color:#9b2e2e}
+
+.wgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1.25rem}
+.wopt{padding:14px 10px;border:1px solid #dde3ed;border-radius:10px;cursor:pointer;text-align:center;font-size:17px;font-weight:600;background:#fff;transition:all .1s}
+.wopt:hover:not(.lk){border-color:#0d3b6e;background:#e8f0fb}
+.wopt.sel{border:2px solid #0d3b6e;background:#e8f0fb;color:#0d3b6e}
+.wopt.ok{border:2px solid #276d3a;background:#e6f4ea;color:#276d3a}
+.wopt.bad{border:2px solid #9b2e2e;background:#fce8e8;color:#9b2e2e}
+
+.group-wrap{margin-bottom:1.25rem}
+.group-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.group-col{border-radius:10px;border:2px dashed #ccc;padding:10px;min-height:60px}
+.group-col-label{font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
+.group-chip{display:inline-flex;align-items:center;margin:3px;padding:6px 12px;border:1px solid #dde3ed;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;transition:all .1s;user-select:none}
+.group-chip:hover{border-color:#0d3b6e;background:#e8f0fb}
+.group-chip.placed{background:#e8f0fb;border-color:#0d3b6e;color:#0d3b6e}
+.group-chip.ok-c{background:#e6f4ea;border-color:#276d3a;color:#1a3a1a}
+.group-chip.bad-c{background:#fce8e8;border-color:#9b2e2e;color:#3a1a1a}
+.group-bank{display:flex;flex-wrap:wrap;padding:8px;background:#f8f9fa;border-radius:8px;margin-bottom:10px;min-height:44px;border:1px solid #eee}
+
+.wo-bank,.wo-placed{display:flex;flex-wrap:wrap;gap:8px;min-height:44px;padding:10px;border-radius:8px;margin-bottom:8px}
+.wo-bank{background:#f8f9fa;border:1px solid #eee}
+.wo-placed{border:2px dashed #ccc}
+.wchip{padding:6px 13px;border:1px solid #dde3ed;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;transition:all .1s;user-select:none}
+.wchip:hover{border-color:#0d3b6e;background:#e8f0fb}
+.wchip.placed{background:#e8f0fb;border-color:#0d3b6e;color:#0d3b6e}
+.wchip.fixed{background:#f0f4f8;border-color:#ccc;color:#999;cursor:default;font-style:italic}
+.wchip.ok-c{background:#e6f4ea;border-color:#276d3a;color:#276d3a}
+.wchip.bad-c{background:#fce8e8;border-color:#9b2e2e;color:#9b2e2e}
+.wo-hint{font-size:12px;color:#888;margin-bottom:5px}
+
+.passage{background:#f8f9fa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:14px;line-height:2.4;border:1px solid #eee}
+.cloze-sel{border:1px solid #ccc;border-radius:4px;padding:2px 8px;font-size:13px;background:#fff;color:#1a1a2e;cursor:pointer;min-width:110px}
+.cloze-sel.c-ok{border-color:#276d3a;background:#e6f4ea;color:#276d3a}
+.cloze-sel.c-bad{border-color:#9b2e2e;background:#fce8e8;color:#9b2e2e}
+
+.fb{display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:1rem;line-height:1.5}
+.fb.ok{display:block;background:#e6f4ea;border:1px solid #7bc88a;color:#1a4a1a}
+.fb.bad{display:block;background:#fce8e8;border:1px solid #e88a8a;color:#4a1a1a}
+
+.q-nav{display:flex;gap:10px}
+.btn-skip{padding:11px 18px;border:1px solid #ccc;border-radius:8px;background:#fff;font-size:14px;cursor:pointer;color:#888}
+.btn-skip:hover{background:#f8f9fa}
+.btn-nxt{flex:1;padding:11px;background:#0d3b6e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-nxt:hover{background:#1050a0}
+
+.r-hero{text-align:center;padding:1.5rem 0 1rem}
+.r-ring{width:100px;height:100px;border-radius:50%;margin:0 auto 1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;border:3px solid}
+.r-ring.pass{border-color:#276d3a;background:#e6f4ea}
+.r-ring.fail{border-color:#9b2e2e;background:#fce8e8}
+.rpct{font-size:26px;font-weight:700}
+.r-ring.pass .rpct{color:#1a3a1a}
+.r-ring.fail .rpct{color:#3a1a1a}
+.rlbl{font-size:10px;letter-spacing:.05em;font-weight:700}
+.r-ring.pass .rlbl{color:#276d3a}
+.r-ring.fail .rlbl{color:#9b2e2e}
+.verdict{display:inline-block;padding:5px 18px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:6px}
+.verdict.pass{background:#e6f4ea;color:#1a3a1a}
+.verdict.fail{background:#fce8e8;color:#3a1a1a}
+.r-meta{font-size:13px;color:#888;line-height:1.6}
+.gauge-wrap{background:#f8f9fa;border-radius:10px;padding:1rem 1.25rem;margin:1rem 0;border:1px solid #eee}
+.gauge-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.gauge-lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888}
+.gauge-score{font-size:22px;font-weight:700}
+.gauge-track{position:relative;height:16px;border-radius:8px;overflow:hidden;margin-bottom:4px;background:linear-gradient(90deg,#c0392b 0%,#e67e22 30%,#f1c40f 55%,#2196a0 75%,#276d3a 100%)}
+.gauge-needle{position:absolute;top:-4px;width:4px;height:24px;background:#0d3b6e;border-radius:2px;transform:translateX(-50%);box-shadow:0 0 0 2px #fff}
+.band-zones{display:flex;margin-bottom:10px;border-radius:6px;overflow:hidden;border:1px solid #eee}
+.bzone{flex:1;text-align:center;padding:5px 2px;font-size:10px;font-weight:700}
+.bzone.z1{background:#fce8e8;color:#9b2e2e}
+.bzone.z2{background:#fdf3e3;color:#a05a00}
+.bzone.z3{background:#fef9e7;color:#8a6a00}
+.bzone.z4{background:#e0f4f7;color:#1a6a7a}
+.bzone.z5{background:#e6f4ea;color:#276d3a}
+.bzone.active-zone{outline:2px solid #0d3b6e;outline-offset:-2px;font-weight:800}
+.band-desc-box{border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.6;border:1px solid}
+.sec-scores-wrap{margin:1.25rem 0}
+.sec-scores-wrap h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:10px}
+.ss-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.ss-name{font-size:13px;width:180px;min-width:180px;color:#1a1a2e}
+.ss-track{flex:1;height:10px;background:#eee;border-radius:5px;overflow:hidden}
+.ss-fill{height:100%;border-radius:5px;transition:width .5s}
+.ss-right{display:flex;align-items:center;gap:6px;min-width:80px;justify-content:flex-end}
+.ss-pct{font-size:12px;font-weight:700;min-width:32px;text-align:right}
+.ss-note{font-size:10px;padding:2px 6px;border-radius:10px;white-space:nowrap;font-weight:600}
+.ss-note.weak{background:#fce8e8;color:#9b2e2e}
+.ss-note.medium{background:#fff8e1;color:#a05a00}
+.ss-note.strong{background:#e6f4ea;color:#276d3a}
+.weak-wrap{margin:1.25rem 0}
+.weak-wrap h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:10px}
+.weak-card{border-radius:10px;padding:1rem 1.25rem;margin-bottom:10px;border:1px solid}
+.weak-card.weak{border-color:#e88a8a;background:#fce8e8}
+.weak-card.medium{border-color:#f0c040;background:#fff8e1}
+.weak-card.strong{border-color:#7bc88a;background:#e6f4ea}
+.wk-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.wk-title{font-size:14px;font-weight:700}
+.wk-title.weak{color:#6b1a1a}.wk-title.medium{color:#5a3c00}.wk-title.strong{color:#1a3a1a}
+.wk-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+.wk-badge.weak{background:#f5b7b7;color:#6b1a1a}
+.wk-badge.medium{background:#fce5a0;color:#5a3c00}
+.wk-badge.strong{background:#a8e6b4;color:#1a3a1a}
+.wk-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.wk-track{flex:1;height:8px;background:rgba(0,0,0,.1);border-radius:4px;overflow:hidden}
+.wk-fill{height:100%;border-radius:4px}
+.wk-fill.weak{background:#c0392b}.wk-fill.medium{background:#e67e22}.wk-fill.strong{background:#276d3a}
+.wk-tips{margin-top:6px}
+.wk-tip{display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-bottom:5px;line-height:1.5;color:#1a1a2e}
+.tip-icon{font-size:13px;flex-shrink:0;margin-top:1px}
+.wk-tip.weak .tip-icon{color:#c0392b}.wk-tip.medium .tip-icon{color:#e67e22}.wk-tip.strong .tip-icon{color:#276d3a}
+.study-wrap{margin:1.25rem 0}
+.study-wrap h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:10px}
+.study-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #eee;align-items:flex-start}
+.study-item:last-child{border:none}
+.study-num{width:24px;height:24px;min-width:24px;border-radius:50%;background:#0d3b6e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.study-text{font-size:13px;line-height:1.55;color:#1a1a2e}
+.study-text strong{font-weight:600}
+.review-block{margin-bottom:1.25rem}
+.review-block h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;padding-bottom:6px;border-bottom:1px solid #eee;margin-bottom:8px}
+.ritem{border:1px solid #eee;border-radius:10px;padding:12px 14px;margin-bottom:7px}
+.ritem.rp{border-left:3px solid #276d3a}
+.ritem.rf{border-left:3px solid #9b2e2e}
+.rq{font-size:13px;font-weight:600;line-height:1.4;margin-bottom:6px;color:#1a1a2e}
+.ra{font-size:12px;margin-bottom:2px}
+.ra.ok{color:#1a3a1a}.ra.bad{color:#3a1a1a}
+.rc{font-size:12px;color:#276d3a}
+.rexpl{font-size:11px;color:#888;margin-top:5px;font-style:italic;line-height:1.5}
+.btn-pair{display:flex;gap:10px;margin-top:1rem}
+.btn-sec2{flex:1;padding:11px;border:1px solid #ccc;border-radius:8px;background:#fff;font-size:14px;cursor:pointer;font-weight:500}
+.btn-sec2:hover{background:#f8f9fa}
+.btn-pri2{flex:1;padding:11px;background:#0d3b6e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-pri2:hover{background:#1050a0}
+.disc{font-size:11px;color:#aaa;line-height:1.6;padding:10px 0;border-top:1px solid #eee;margin-top:1rem;text-align:center}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="s-cover" class="screen active">
+  <div class="cover">
+    <div class="logo-bar"><span>&#9875; Seafarer English Assessment</span></div>
+    <h1>Maritime English Practice Test</h1>
+    <p class="cover-sub">AI-generated questions every session &mdash; fully unique, unmemorisable.<br>Structured to match the official Marlin-style competency test format.</p>
+    <div class="notice-box"><p><strong>Practice tool only.</strong> Not affiliated with ICS Marlins or any official testing body. All questions are AI-generated originals. Results are self-assessment estimates only.</p></div>
+    <div class="type-grid">
+      <div class="type-card sel" id="tc-sea" onclick="setType('seafarer')"><div class="tc-name">Seafarer / Offshore</div><div class="tc-meta">85 questions &middot; 6 sections &middot; no time limit</div></div>
+      <div class="type-card" id="tc-cru" onclick="setType('cruise')"><div class="tc-name">Cruise Ship Staff</div><div class="tc-meta">50 questions &middot; 5 sections &middot; no time limit</div></div>
+    </div>
+    <div id="struct-wrap"></div>
+    <button class="btn-main" onclick="startGen()">&#10024; Generate my unique test</button>
+    <div class="footnote">No time limit &mdash; just like the real test. Every session generates completely fresh AI questions so candidates cannot memorise answers.</div>
+  </div>
+</div>
+
+<div id="s-gen" class="screen">
+  <div class="gen-screen">
+    <div class="gen-spinner"></div>
+    <div class="gen-title">Generating your unique test...</div>
+    <div class="gen-sub">Each section is generated by AI separately. Takes about 30 seconds.</div>
+    <div class="gen-steps" id="gen-steps"></div>
+  </div>
+</div>
+
+<div id="s-intro" class="screen">
+  <div class="sec-intro">
+    <div class="sec-icon" id="intro-icon">&#127911;</div>
+    <h2 id="intro-h2">Section</h2>
+    <p class="sec-sub" id="intro-sub"></p>
+    <div class="sec-info" id="intro-info"></div>
+    <button class="btn-main" onclick="beginSec()">Start this section &rarr;</button>
+  </div>
+</div>
+
+<div id="s-q" class="screen">
+  <div class="t-header">
+    <div><span class="sec-pill" id="th-sec">&#8212;</span><div class="q-counter" id="th-cnt">&#8212;</div><div class="qtype-note" id="th-qtype"></div></div>
+    <div><div class="elapsed-lbl">Time elapsed</div><div class="elapsed-val" id="elapsed-val">0:00</div></div>
+  </div>
+  <div class="dots" id="dots"></div>
+  <div id="qbody"></div>
+  <div class="fb" id="fb"></div>
+  <div class="q-nav">
+    <button class="btn-skip" onclick="doSkip()">Skip</button>
+    <button class="btn-nxt" onclick="doNext()">Next &rarr;</button>
+  </div>
+</div>
+
+<div id="s-results" class="screen"><div id="results-html"></div></div>
+</div>
+
+<script>
+const SEC_DEFS = {
+  seafarer:[
+    {id:'listening',name:'Listening Comprehension',icon:'&#127911;',count:25,desc:'Listen to maritime dialogues and monologues. Max 2 plays per question. Read the question first.',info:[['Question types','Dialogue MC · Monologue Q&A · Sentence completion (2 options)'],['Audio plays','Maximum 2 per question'],['Questions','25'],['Tip','Read the question before playing the audio']]},
+    {id:'grammar',name:'Grammar',icon:'&#9999;&#65039;',count:30,desc:'Choose the correct grammatical option or arrange words into the right order. All contexts are maritime.',info:[['Question types','Multiple choice · Word order (first & last fixed)'],['Level','B2 upper-intermediate'],['Questions','30'],['Tip','Read the full sentence before choosing']]},
+    {id:'vocabulary',name:'Vocabulary',icon:'&#128218;',count:15,desc:'Find the odd word out, sort words into categories, or complete a maritime sentence.',info:[['Question types','Odd one out · Word grouping · Sentence completion'],['Focus','Maritime & general vocabulary'],['Questions','15'],['Tip','Think about the category, not just the spelling']]},
+    {id:'sounds',name:'Different Sounds & Pronunciation',icon:'&#128266;',count:9,desc:'Four words shown. Three share the same sound. Find the word with a different vowel or consonant sound.',info:[['Question types','Identify the odd sound out'],['Focus','Vowel and consonant discrimination'],['Questions','9'],['Tip','Say the words aloud quietly']]},
+    {id:'reading',name:'Reading Comprehension',icon:'&#128196;',count:1,desc:'Read a maritime text passage. Select the correct word for each gap using the dropdown menus.',info:[['Question types','Cloze text — fill the gaps'],['Format','1 passage with 7 gaps'],['Official count','1 question'],['Tip','Read the whole passage first, then fill the gaps']]},
+    {id:'numbers',name:'Time & Numbers',icon:'&#128336;',count:5,desc:'Questions on how numbers, times, positions and measurements are expressed in maritime English.',info:[['Question types','Number/time expression · Coordinates · Spoken forms'],['Questions','5'],['Tip','Pay attention to spoken vs written forms']]}
+  ],
+  cruise:[
+    {id:'listening',name:'Listening Comprehension',icon:'&#127911;',count:14,desc:'Listen to hospitality dialogues and guest interactions. Max 2 plays per question.',info:[['Question types','Dialogue MC · Sentence completion'],['Audio plays','Maximum 2'],['Questions','14']]},
+    {id:'grammar',name:'Grammar',icon:'&#9999;&#65039;',count:19,desc:'Choose the correct grammatical form or arrange words. Contexts are cruise ship and hospitality.',info:[['Question types','Multiple choice · Word order'],['Level','B2'],['Questions','19']]},
+    {id:'vocabulary',name:'Vocabulary',icon:'&#128218;',count:12,desc:'Odd one out, word grouping, or choose the correct hospitality term.',info:[['Question types','Odd one out · Word grouping · Sentence completion'],['Questions','12']]},
+    {id:'reading',name:'Reading Comprehension',icon:'&#128196;',count:1,desc:'Read a cruise industry passage and complete the gaps.',info:[['Question types','Cloze text'],['Format','1 passage with gaps'],['Official count','1 question']]},
+    {id:'numbers',name:'Time & Numbers',icon:'&#128336;',count:4,desc:'Times, schedules, and numbers in cruise ship operations.',info:[['Question types','Time/number expression'],['Questions','4']]}
+  ]
+};
+
+const STRUCT = {
+  seafarer:[['Listening Comprehension','25'],['Grammar','30'],['Vocabulary','15'],['Sounds & Pronunciation','9'],['Reading Comprehension','1'],['Time & Numbers','5'],['Total','85']],
+  cruise:[['Listening Comprehension','14'],['Grammar','19'],['Vocabulary','12'],['Reading Comprehension','1'],['Time & Numbers','4'],['Total','50']]
+};
+
+const WEAK_TIPS = {
+  listening:{
+    weak:['Listen to maritime VHF radio communications on YouTube daily','Focus on key details: numbers, times, names, and specific instructions','Write down what you understood after the first listen before playing again'],
+    medium:['Practise listening for implied meaning — what does the speaker really want?','Work on distinguishing similar-sounding words in context','Review common maritime phrases so they are automatic when you hear them'],
+    strong:['Challenge yourself with different accents: British, Filipino, Eastern European','Try listening without reading the question first to train pure comprehension']
+  },
+  grammar:{
+    weak:['Study modal verbs: must (obligation), shall (formal order), should (advice), may (permission)','Practise passive voice: "The cargo was secured", "The alarm was raised"','Review conditionals: "If the pressure drops, the alarm will sound"'],
+    medium:['Focus on maritime prepositions: in compliance with, at anchor, on watch, by order of','Review reported speech: "The officer said the pilot would board at 0600"','Practise word-order rules with adverbs and time expressions'],
+    strong:['Read SOLAS summaries and maritime circulars in English to stay sharp','Write your own sentences using grammar points from the test']
+  },
+  vocabulary:{
+    weak:['Study ship anatomy: bow, stern, port, starboard, keel, hull, bulkhead, hatch, gangway','Learn safety equipment: immersion suit, EPIRB, SART, liferaft, smoke signal','Download the SMCP wordlist free from IMO — essential maritime vocabulary'],
+    medium:['Focus on multi-word expressions: "stand by", "cast off", "heave to", "make fast"','Practise word grouping: navigation vs safety gear vs cargo equipment','Read safety notices and memos on board — real vocabulary in real context'],
+    strong:['Expand to rank-specific vocabulary for your position and department','Read Seaways magazine or IMO circulars for advanced maritime terminology']
+  },
+  sounds:{
+    weak:['Learn the main English vowel sounds using an IPA chart (search online)','Focus on minimal pairs: ship/sheep, live/leave, full/fool, chart/chart','Record yourself saying words and compare to a native English speaker'],
+    medium:['Study silent letters: knot (k silent), bow (rhymes with "low" for ship front)','Practise /\u025c\u02d0/ (berth, earth, work) vs /e/ (breath, dead, head)','Be careful with -ough words: through/though/thought/rough sound different'],
+    strong:['Focus on number pairs: thirteen/thirty, fourteen/forty — critical for safety','Practise stress patterns in longer maritime technical words']
+  },
+  reading:{
+    weak:['Read one page of English daily — start with ship safety notices and posters','Practise predicting missing words: cover a word and guess it from context','Review grammar alongside reading — many gaps test grammar, not vocabulary'],
+    medium:['Skim the whole passage first, then re-read slowly before filling gaps','Check if the gap needs a noun, verb, adjective, or preposition — narrows choices','Practise with maritime procedure documents — same style as the test passage'],
+    strong:['Practise reading speed so you finish with time to check all gaps','Read technical maritime documents for more advanced cloze vocabulary']
+  },
+  numbers:{
+    weak:['Memorise 24-hour clock: 0600 = "oh-six hundred", 1400 = "fourteen hundred"','Learn coordinate format: "zero-three-five degrees, two-four minutes North"','Practise writing numbers you hear: 4.5 kt, -12 degrees C, 9.4m draft'],
+    medium:['Distinguish spoken vs written: "nought point nine" = 0.9, "nine and a half" = 9.5','Review how bearings are spoken: course zero-four-five, not forty-five degrees','Practise radio frequencies and channel numbers: Ch 16, 156.8 MHz'],
+    strong:['Practise under slight time pressure — number questions need quick recognition','Review how dates are expressed formally: 15 June 2025 vs 15/06/25']
+  }
+};
+
+let testType='seafarer',allQ=[],answers=[],qIdx=0;
+let elapsedIv=null,startEpoch=0;
+let playsUsed={},woState={},grpState={},clozeAns={};
+
+function setType(t){
+  testType=t;
+  document.querySelectorAll('.type-card').forEach(c=>c.classList.remove('sel'));
+  document.getElementById('tc-'+(t==='seafarer'?'sea':'cru')).classList.add('sel');
+  renderStruct(t);
+}
+
+function renderStruct(t){
+  const rows=STRUCT[t];
+  let h='<table class="struct-table"><thead><tr><th>Section</th><th class="num">Questions</th></tr></thead><tbody>';
+  rows.forEach((r,i)=>{
+    const last=i===rows.length-1;
+    h+='<tr><td>'+(last?'<strong>':'')+ r[0]+(last?'</strong>':'')+'</td><td class="num">'+(last?'<strong>':'')+r[1]+(last?'</strong>':'')+'</td></tr>';
+  });
+  document.getElementById('struct-wrap').innerHTML=h+'</tbody></table>';
+}
+renderStruct('seafarer');
+
+async function startGen(){
+  show('s-gen');
+  const secs=SEC_DEFS[testType];
+  const steps=secs.map(s=>({label:s.name,status:'pending'}));
+  renderSteps(steps); allQ=[];
+  for(let i=0;i<secs.length;i++){
+    steps[i].status='active'; renderSteps(steps);
+    allQ.push(...await genSection(secs[i]));
+    steps[i].status='done'; renderSteps(steps);
+  }
+  answers=allQ.map(()=>({given:null,correct:false}));
+  playsUsed={}; woState={}; grpState={}; clozeAns={};
+  qIdx=0; startEpoch=Date.now(); startElapsed(); showSecIntro();
+}
+
+function renderSteps(steps){
+  document.getElementById('gen-steps').innerHTML=steps.map(s=>{
+    const ico=s.status==='done'?'&#9989;':s.status==='active'?'&#8987;':'&#11036;';
+    return '<div class="gen-step '+(s.status==='done'?'done':s.status==='active'?'active':'')+'"><span class="step-ico">'+ico+'</span>'+s.label+'</div>';
+  }).join('');
+}
+
+async function genSection(sec){
+  const prompts={
+    listening:'Generate exactly '+sec.count+' UNIQUE original maritime English listening comprehension questions. Mix of types:\n1. "dialogue" - 2-4 sentence exchange between crew. 4 answer options.\n2. "sentence_completion" - spoken sentence with one missing word. Only 2 answer choices A or B.\n3. "monologue" - single person speaking. 4 answer options.\nVary contexts widely: bridge, engine room, mooring, galley, port, safety, passenger, cargo, radio comms.\nReturn ONLY a valid JSON array:\n[{"type":"dialogue","audioScript":"script","question":"question","opts":["A. o","B. o","C. o","D. o"],"correct":0,"explanation":"why"},{"type":"sentence_completion","audioScript":"The crew must _____ before departure.","blank":"_____","opts":["A. word","B. word"],"correct":0,"explanation":"why"},{"type":"monologue","audioScript":"script","question":"question","opts":["A. o","B. o","C. o","D. o"],"correct":0,"explanation":"why"}]\nNo markdown, no extra text.',
+    grammar:'Generate exactly '+sec.count+' UNIQUE maritime English grammar questions. ~65% multiple-choice, ~35% word-order.\nMC format: {"type":"mc","question":"sentence with ____ gap","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"grammar reason"}\nWord-order (mark the first and last fixed words): {"type":"wordorder","question":"Arrange the words - first and last are fixed:","words":["FIRST","w2","w3","w4","w5","LAST"],"firstFixed":"FIRST","lastFixed":"LAST","correct":"full correct sentence in lowercase","explanation":"why this order"}\nReturn ONLY a valid JSON array, no markdown.',
+    vocabulary:'Generate exactly '+sec.count+' UNIQUE maritime English vocabulary questions. Mix three types equally:\n1. Odd-one-out: {"type":"odd","question":"Which word does NOT belong?","words":["w1","w2","w3","w4"],"correct":0,"explanation":"why the odd one differs"}\n2. Grouping (2 words each category): {"type":"grouping","question":"Sort into categories (2 words each):","words":["w1","w2","w3","w4"],"catA":"Category A","catB":"Category B","groupA":[0,1],"groupB":[2,3],"explanation":"why each word belongs"}\n3. Sentence completion: {"type":"context","question":"The officer ___ the crew to secure the cargo.","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"why"}\nReturn ONLY a valid JSON array, no markdown.',
+    sounds:'Generate exactly '+sec.count+' UNIQUE English pronunciation questions for a maritime test.\nEach question shows 4 words - 3 share the same vowel or consonant sound, 1 has a different sound.\nCover diverse sounds: /i:/ /I/ /ɑ:/ /æ/ /ʊ/ /u:/ /ɔ:/ /eI/ /aI/ /əʊ/ /ɜ:/ /e/ /ʌ/ /ɒ/ and consonant patterns.\n{"type":"sounds","question":"Which word has a DIFFERENT sound from the other three?","words":["w1","w2","w3","w4"],"correct":0,"explanation":"phonetic explanation with IPA"}\nReturn ONLY a valid JSON array, no markdown.',
+    reading:'Generate ONE original maritime English cloze reading passage for a practice test.\nTopic: choose from STCW certification, port state control, watchkeeping duties, MARPOL compliance, ISM Code, cargo securing, emergency muster procedures, crew medical requirements, or passage planning.\nPassage: 5-7 sentences. Remove exactly 7 words and replace with [GAP_0] through [GAP_6].\nFor each gap provide 4 options - one correct, three plausible distractors.\nReturn ONLY this exact JSON object, no markdown:\n{"type":"reading","topic":"Topic title","passage":"Full text with [GAP_0] through [GAP_6]","gaps":[{"label":"[GAP_0]","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"why"},{"label":"[GAP_1]","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"why"},{"label":"[GAP_2]","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"why"},{"label":"[GAP_3]","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"why"},{"label":"[GAP_4]","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"why"},{"label":"[GAP_5]","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"why"},{"label":"[GAP_6]","opts":["A. w","B. w","C. w","D. w"],"correct":0,"explanation":"why"}]}',
+    numbers:'Generate exactly '+sec.count+' UNIQUE maritime time and numbers questions. Each must test a DIFFERENT skill: 24-hour clock, latitude/longitude coordinates, speed in knots, draft readings, cargo weight in MT, barometric pressure, temperature in Celsius, nautical miles, radio channels, bearing degrees.\n{"type":"mc","question":"Clear specific maritime number/time question","opts":["A. option","B. option","C. option","D. option"],"correct":0,"explanation":"clear explanation of the correct form"}\nReturn ONLY a valid JSON array, no markdown.'
+  };
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4096,
+        system:'You are a maritime English test designer. Output ONLY valid JSON as instructed. No markdown fences, no commentary, no preamble. Ensure all correct index values are within array bounds.',
+        messages:[{role:'user',content:prompts[sec.id]||prompts.grammar}]})
+    });
+    const data=await res.json();
+    const raw=data.content[0].text.replace(/```json|```/g,'').trim();
+    let parsed=JSON.parse(raw);
+    if(!Array.isArray(parsed)) parsed=[parsed];
+    return parsed.map(q=>{
+      if(q.opts&&q.correct>=q.opts.length) q.correct=0;
+      if(q.words&&q.correct>=q.words.length) q.correct=0;
+      return {...q,section:sec.id};
+    });
+  }catch(e){
+    return getFallback(sec);
+  }
+}
+
+function getFallback(sec){
+  const fb={
+    listening:[
+      {type:'dialogue',section:'listening',audioScript:'Chief Officer: Double up all mooring lines on the port side. We have strong winds forecast before midnight.',question:'What does the Chief Officer order?',opts:['A. Check the weather forecast','B. Double up the port mooring lines','C. Move the vessel to another berth','D. Call the port agent immediately'],correct:1,explanation:'The Chief Officer specifically orders doubling up of port mooring lines.'},
+      {type:'sentence_completion',section:'listening',audioScript:'The Officer of the Watch must _____ the Master immediately if visibility drops below one nautical mile.',blank:'_____',opts:['A. inform','B. ignore'],correct:0,explanation:'"Inform" is the correct and required action when visibility is reduced.'}
+    ],
+    grammar:[
+      {type:'mc',section:'grammar',question:'All crew members ____ attend the safety familiarisation within 24 hours of joining the vessel.',opts:['A. must','B. should to','C. ought','D. can to'],correct:0,explanation:'"Must" expresses mandatory obligation required by SOLAS regulations.'},
+      {type:'wordorder',section:'grammar',question:'Arrange the words - first and last are fixed:',words:['The','cargo','be','must','secured','before','departure'],firstFixed:'The',lastFixed:'departure',correct:'The cargo must be secured before departure',explanation:'Modal passive construction: subject + must + be + past participle + time adverbial.'}
+    ],
+    vocabulary:[
+      {type:'odd',section:'vocabulary',question:'Which word does NOT belong?',words:['bow','stern','midship','invoice'],correct:3,explanation:'Bow, stern and midship are structural parts of a ship. An invoice is a financial document.'},
+      {type:'grouping',section:'vocabulary',question:'Sort into categories (2 words each):',words:['compass','lifejacket','chart','immersion suit'],catA:'Navigation equipment',catB:'Survival equipment',groupA:[0,2],groupB:[1,3],explanation:'Compass and chart are used for navigation. Lifejacket and immersion suit are survival/safety equipment.'},
+      {type:'context',section:'vocabulary',question:'Before entering the engine room, crew must sign the ____ to prevent accidents.',opts:['A. permit to work','B. port clearance','C. bill of lading','D. muster list'],correct:0,explanation:'A permit to work is the required safety document for engine room entry.'}
+    ],
+    sounds:[
+      {type:'sounds',section:'sounds',question:'Which word has a DIFFERENT sound from the other three?',words:['sea','key','quay','bay'],correct:3,explanation:'"sea", "key" and "quay" all have the /i\u02d0/ (long ee) sound. "bay" has the /e\u026a/ sound.'}
+    ],
+    reading:[
+      {type:'reading',section:'reading',topic:'Port State Control Inspection',
+       passage:'Before a vessel [GAP_0] port, the Master must ensure that all certificates are [GAP_1] and up to date. The port agent will confirm the [GAP_2] time of arrival. On arrival, the ship may be subject to a Port State Control [GAP_3], during which officers verify that the vessel is in [GAP_4] with all applicable maritime conventions. The Chief Officer is [GAP_5] for ensuring the crew list is correctly prepared. A safe [GAP_6] must be maintained from all obstacles throughout the approach.',
+       gaps:[
+        {label:'[GAP_0]',opts:['A. enters','B. paints','C. sells','D. ignores'],correct:0,explanation:'"Enters" is the correct verb — a vessel enters port.'},
+        {label:'[GAP_1]',opts:['A. valid','B. validity','C. validating','D. validate'],correct:0,explanation:'An adjective is needed here to describe the certificates — "valid".'},
+        {label:'[GAP_2]',opts:['A. estimated','B. accidental','C. cancelled','D. unknown'],correct:0,explanation:'ETA stands for Estimated Time of Arrival — "estimated" is correct.'},
+        {label:'[GAP_3]',opts:['A. inspection','B. celebration','C. holiday','D. purchase'],correct:0,explanation:'Port State Control carries out an inspection of the vessel and its documents.'},
+        {label:'[GAP_4]',opts:['A. compliance','B. conflict','C. contact','D. contrast'],correct:0,explanation:'"In compliance with" is the correct legal collocation used in maritime regulations.'},
+        {label:'[GAP_5]',opts:['A. responsible','B. responsibility','C. responsibly','D. respond'],correct:0,explanation:'An adjective is needed after "is" — "responsible for" is the correct form.'},
+        {label:'[GAP_6]',opts:['A. distance','B. opinion','C. colour','D. meal'],correct:0,explanation:'"Safe distance" is the standard maritime collocation for maintaining clearance.'}
+       ]}
+    ],
+    numbers:[
+      {type:'mc',section:'numbers',question:'The officer reports: "ETA fourteen hundred hours." What time does this mean?',opts:['A. 4:00 AM','B. 2:00 PM','C. 12:00 noon','D. 4:00 PM'],correct:1,explanation:'1400 hours in 24-hour clock = 2:00 PM (14 minus 12 = 2).'}
+    ]
+  };
+  return (fb[sec.id]||fb.grammar).map(q=>({...q,section:sec.id}));
+}
+
+function startElapsed(){
+  elapsedIv=setInterval(()=>{
+    const s=Math.floor((Date.now()-startEpoch)/1000);
+    const el=document.getElementById('elapsed-val');
+    if(el) el.textContent=Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60;
+  },1000);
+}
+
+function secDefOf(id){ return SEC_DEFS[testType].find(s=>s.id===id)||{}; }
+function curSec(){ return allQ[qIdx]?allQ[qIdx].section:null; }
+
+function showSecIntro(){
+  const sec=secDefOf(curSec());
+  document.getElementById('intro-icon').innerHTML=sec.icon||'&#128203;';
+  document.getElementById('intro-h2').textContent=sec.name;
+  document.getElementById('intro-sub').textContent=sec.desc;
+  document.getElementById('intro-info').innerHTML=(sec.info||[]).map(r=>'<div class="sec-row"><span class="sk">'+r[0]+'</span><span class="sv">'+r[1]+'</span></div>').join('');
+  show('s-intro');
+}
+
+function beginSec(){ renderQ(); }
+
+const QTYPE_LABELS={dialogue:'Listening — Dialogue',monologue:'Listening — Monologue',sentence_completion:'Listening — Sentence completion',mc:'Multiple choice',wordorder:'Grammar — Word order',odd:'Vocabulary — Odd one out',grouping:'Vocabulary — Word grouping',context:'Vocabulary — Complete the sentence',sounds:'Pronunciation — Different sounds',reading:'Reading comprehension'};
+
+function renderQ(){
+  show('s-q');
+  const q=allQ[qIdx]; if(!q){showResults();return;}
+  const sec=secDefOf(q.section);
+  document.getElementById('th-sec').textContent=sec.name||q.section;
+  document.getElementById('th-cnt').textContent='Question '+(qIdx+1)+' of '+allQ.length;
+  document.getElementById('th-qtype').textContent=QTYPE_LABELS[q.type]||q.type;
+  document.getElementById('fb').className='fb';
+  const dc=document.getElementById('dots'); dc.innerHTML='';
+  allQ.forEach((_,i)=>{const d=document.createElement('div');d.className='dot'+(i<qIdx?(answers[i].given===-1?' skip':' done'):i===qIdx?' cur':'');dc.appendChild(d);});
+  const body=document.getElementById('qbody');
+  const locked=answers[qIdx].given!==null;
+  if(q.type==='dialogue'||q.type==='monologue') renderListening(q,body,locked,false);
+  else if(q.type==='sentence_completion') renderListening(q,body,locked,true);
+  else if(q.type==='mc') body.innerHTML='<div class="qtype-lbl">'+sec.name+'</div><div class="q-text">'+q.question+'</div>'+buildMC(q,locked);
+  else if(q.type==='wordorder') renderWO(q,body,locked);
+  else if(q.type==='odd') body.innerHTML='<div class="qtype-lbl">Vocabulary &#8212; Odd one out</div><div class="q-text">'+q.question+'</div>'+buildWGrid(q,locked);
+  else if(q.type==='grouping') renderGrouping(q,body,locked);
+  else if(q.type==='context') body.innerHTML='<div class="qtype-lbl">Vocabulary &#8212; Complete the sentence</div><div class="q-text">'+q.question+'</div>'+buildMC(q,locked);
+  else if(q.type==='sounds') body.innerHTML='<div class="qtype-lbl">Pronunciation &#8212; Different sounds</div><div class="q-text">'+q.question+'</div>'+buildWGrid(q,locked);
+  else if(q.type==='reading'){renderReading(q,body);return;}
+  if(locked) showFB(q);
+}
+
+function renderListening(q,body,locked,isSC){
+  const pk='p'+qIdx; if(!playsUsed[pk]) playsUsed[pk]=0;
+  const left=2-playsUsed[pk];
+  const bc=left===0?'gone':left===1?'used':'';
+  const ahtml='<div class="audio-card"><button class="pbtn" id="pbtn-'+qIdx+'" '+(left>0&&!locked?'':'disabled')+' onclick="playAudio('+qIdx+')">'+(left>0?'&#9654;':'&#9632;')+'</button><div class="ainfo"><div class="atitle">Maritime audio recording</div><div class="asub">Listen carefully &#8212; max 2 plays</div></div><span class="plays-badge '+bc+'" id="pb-'+qIdx+'">'+left+' play'+(left!==1?'s':'')+' left</span></div>';
+  if(isSC){
+    const sent=(q.audioScript||'').replace(q.blank||'_____','<span class="sent-blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+    body.innerHTML='<div class="qtype-lbl">Listening &#8212; Sentence completion</div><div class="q-instr">Listen and choose the word that completes the sentence.</div>'+ahtml+'<div class="sent-completion">'+sent+'</div>'+buildTwoOpts(q,locked);
+  }else{
+    body.innerHTML='<div class="qtype-lbl">Listening &#8212; '+(q.type==='dialogue'?'Dialogue':'Monologue')+'</div>'+ahtml+'<div class="q-text">'+q.question+'</div>'+buildMC(q,locked);
+  }
+}
+
+function buildMC(q,locked){
+  const L=['A','B','C','D']; const gv=answers[qIdx].given;
+  return '<div class="opts">'+(q.opts||[]).map((o,i)=>{
+    let c='opt';
+    if(locked){if(i===q.correct)c+=' ok';else if(i===gv&&i!==q.correct)c+=' bad';c+=' lk';}
+    else if(i===gv) c+=' sel';
+    return '<div class="'+c+'" onclick="pickMC('+i+')"><div class="ok-key">'+L[i]+'</div><div class="ot">'+o.replace(/^[A-D]\.\s*/,'')+'</div></div>';
+  }).join('')+'</div>';
+}
+
+function buildTwoOpts(q,locked){
+  const gv=answers[qIdx].given;
+  return '<div class="two-opts">'+(q.opts||[]).slice(0,2).map((o,i)=>{
+    let c='two-opt';
+    if(locked){if(i===q.correct)c+=' ok';else if(i===gv&&i!==q.correct)c+=' bad';c+=' lk';}
+    else if(i===gv) c+=' sel';
+    return '<div class="'+c+'" onclick="pickMC('+i+')">'+o.replace(/^[A-B]\.\s*/,'')+'</div>';
+  }).join('')+'</div>';
+}
+
+function buildWGrid(q,locked){
+  const gv=answers[qIdx].given;
+  return '<div class="wgrid">'+(q.words||[]).map((w,i)=>{
+    let c='wopt';
+    if(locked){if(i===q.correct)c+=' ok';else if(i===gv&&i!==q.correct)c+=' bad';c+=' lk';}
+    else if(i===gv) c+=' sel';
+    return '<div class="'+c+'" onclick="pickMC('+i+')">'+w+'</div>';
+  }).join('')+'</div>';
+}
+
+function renderWO(q,body,locked){
+  const k='wo'+qIdx;
+  if(!woState[k]){
+    const first=q.firstFixed||q.words[0];
+    const last=q.lastFixed||q.words[q.words.length-1];
+    const mid=q.words.filter(w=>w!==first&&w!==last).sort(()=>Math.random()-.5);
+    woState[k]={first,last,middle:[...mid],placed:[]};
+  }
+  const st=woState[k]; const gv=answers[qIdx].given; const isAns=gv!==null;
+  const isCorrect=isAns&&(gv||'').toLowerCase().trim()===(q.correct||'').toLowerCase().trim();
+  body.innerHTML=
+    '<div class="qtype-lbl">Grammar &#8212; Word order</div><div class="q-text">'+q.question+'</div>'+
+    '<div class="wo-hint">Grey = fixed. Tap words to build the sentence:</div>'+
+    '<div class="wo-bank" id="wob-'+k+'">'+(isAns?'':(st.middle.map((w,i)=>'<div class="wchip" onclick="woPlace(\''+k+'\','+i+')">'+w+'</div>').join('')))+'</div>'+
+    '<div class="wo-hint">Your sentence:</div>'+
+    '<div class="wo-placed"><div class="wchip fixed">'+st.first+'</div>'+
+    (isAns?st.placed.map(w=>'<div class="wchip '+(isCorrect?'ok-c':'bad-c')+'">'+w+'</div>').join(''):
+           st.placed.map((w,i)=>'<div class="wchip placed" onclick="woUnplace(\''+k+'\','+i+')">'+w+'</div>').join(''))
+    +'<div class="wchip fixed">'+st.last+'</div></div>'+
+    (!isAns?'<button class="btn-nxt" style="width:100%;margin-bottom:8px;margin-top:10px" onclick="woSubmit(\''+k+'\')">Check sentence</button>':'');
+}
+
+function woPlace(k,i){const st=woState[k];st.placed.push(st.middle[i]);st.middle.splice(i,1);renderQ();}
+function woUnplace(k,i){const st=woState[k];st.middle.push(st.placed[i]);st.placed.splice(i,1);renderQ();}
+function woSubmit(k){
+  const st=woState[k]; const q=allQ[qIdx];
+  const s=(st.first+' '+st.placed.join(' ')+' '+st.last).toLowerCase().trim();
+  answers[qIdx]={given:s,correct:s===(q.correct||'').toLowerCase().trim()};
+  renderQ(); showFB(q);
+}
+
+function renderGrouping(q,body,locked){
+  const k='grp'+qIdx;
+  if(!grpState[k]) grpState[k]={bank:[...q.words.map((_,i)=>i)],colA:[],colB:[]};
+  const st=grpState[k]; const isAns=answers[qIdx].given!==null;
+  const cc=(i,col)=>{
+    if(!isAns) return col?'group-chip placed':'group-chip';
+    if(col==='A') return 'group-chip '+((q.groupA||[]).includes(i)?'ok-c':'bad-c');
+    if(col==='B') return 'group-chip '+((q.groupB||[]).includes(i)?'ok-c':'bad-c');
+    return 'group-chip';
+  };
+  body.innerHTML=
+    '<div class="qtype-lbl">Vocabulary &#8212; Word grouping</div><div class="q-text">'+q.question+'</div>'+
+    '<div class="group-wrap"><div class="group-bank">'+(isAns?'':st.bank.map(i=>'<div class="group-chip" onclick="grpPick(\''+k+'\','+i+')">'+q.words[i]+'</div>').join(''))+'</div>'+
+    '<div class="group-cols">'+
+    '<div class="group-col"><div class="group-col-label">'+q.catA+'</div>'+st.colA.map(i=>'<div class="'+cc(i,'A')+'"'+(isAns?'':' onclick="grpUnplace(\''+k+'\',\'A\','+i+')"')+'>'+q.words[i]+'</div>').join('')+'</div>'+
+    '<div class="group-col"><div class="group-col-label">'+q.catB+'</div>'+st.colB.map(i=>'<div class="'+cc(i,'B')+'"'+(isAns?'':' onclick="grpUnplace(\''+k+'\',\'B\','+i+')"')+'>'+q.words[i]+'</div>').join('')+'</div>'+
+    '</div></div>'+
+    (!isAns?'<button class="btn-nxt" style="width:100%;margin-bottom:8px" onclick="grpSubmit(\''+k+'\')">Check grouping</button>':'');
+}
+function grpPick(k,i){const st=grpState[k];if(st.colA.length<2){st.colA.push(i);}else if(st.colB.length<2){st.colB.push(i);}st.bank=st.bank.filter(x=>x!==i);renderQ();}
+function grpUnplace(k,col,i){const st=grpState[k];if(col==='A')st.colA=st.colA.filter(x=>x!==i);else st.colB=st.colB.filter(x=>x!==i);st.bank.push(i);renderQ();}
+function grpSubmit(k){
+  const st=grpState[k]; const q=allQ[qIdx];
+  const ok=JSON.stringify([...st.colA].sort())===JSON.stringify([...(q.groupA||[])].sort())&&JSON.stringify([...st.colB].sort())===JSON.stringify([...(q.groupB||[])].sort());
+  answers[qIdx]={given:{A:st.colA,B:st.colB},correct:ok}; renderQ(); showFB(q);
+}
+
+function renderReading(q,body){
+  let p=q.passage||'';
+  const allDone=(q.gaps||[]).every((_,i)=>clozeAns['c'+qIdx+'_'+i]!==undefined);
+  (q.gaps||[]).forEach((g,i)=>{
+    const k='c'+qIdx+'_'+i; const cv=clozeAns[k]; const isDone=cv!==undefined;
+    let sel='<select class="cloze-sel '+(isDone?(cv===g.correct?'c-ok':'c-bad'):'')+'" '+(isDone?'disabled':'')+' onchange="setCloze('+i+',this.value)"><option value="">&#8212; choose &#8212;</option>';
+    (g.opts||[]).forEach((o,oi)=>sel+='<option value="'+oi+'"'+(isDone&&cv===oi?' selected':'')+'>'+o.replace(/^[A-D]\.\s*/,'')+'</option>');
+    p=p.replace(g.label,sel+'</select>');
+  });
+  body.innerHTML='<div class="qtype-lbl">Reading &#8212; '+(q.topic||'fill in the gaps')+'</div><div class="q-instr">Read the passage. Choose the correct word for each gap, then check your answers.</div><div class="passage">'+p+'</div>'+(!allDone?'<button class="btn-nxt" style="width:100%;margin-bottom:8px" onclick="submitReading()">Check all answers</button>':'');
+  if(allDone) showReadingFB(q);
+}
+function setCloze(i,v){clozeAns['c'+qIdx+'_'+i]=parseInt(v);}
+function submitReading(){
+  const q=allQ[qIdx]; let ok=true;
+  (q.gaps||[]).forEach((g,i)=>{const k='c'+qIdx+'_'+i;if(clozeAns[k]===undefined)clozeAns[k]=null;if(clozeAns[k]!==g.correct)ok=false;});
+  answers[qIdx]={given:'submitted',correct:ok}; renderQ(); showReadingFB(q);
+}
+function showReadingFB(q){
+  let c=0; (q.gaps||[]).forEach((g,i)=>{if(clozeAns['c'+qIdx+'_'+i]===g.correct)c++;});
+  const fb=document.getElementById('fb');
+  fb.className='fb '+(c===(q.gaps||[]).length?'ok':'bad');
+  fb.innerHTML=c===(q.gaps||[]).length?'&#9989; All '+c+' gaps correct!':'&#8505;&#65039; '+c+' of '+(q.gaps||[]).length+' gaps correct. Review the highlighted selections above.';
+}
+
+function playAudio(idx){
+  const q=allQ[idx]; const k='p'+idx;
+  if(playsUsed[k]>=2) return;
+  playsUsed[k]=(playsUsed[k]||0)+1;
+  const left=2-playsUsed[k];
+  const pe=document.getElementById('pb-'+idx); if(pe){pe.textContent=left+' play'+(left!==1?'s':'')+' left';pe.className='plays-badge'+(left===0?' gone':left===1?' used':'');}
+  const be=document.getElementById('pbtn-'+idx); if(be&&left===0) be.disabled=true;
+  window.speechSynthesis.cancel();
+  const utt=new SpeechSynthesisUtterance(q.audioScript||q.question);
+  utt.rate=0.88; utt.pitch=1; utt.lang='en-GB';
+  const voices=window.speechSynthesis.getVoices();
+  const v=voices.find(v=>v.lang==='en-GB')||voices.find(v=>v.lang.startsWith('en'));
+  if(v) utt.voice=v; window.speechSynthesis.speak(utt);
+}
+
+function pickMC(i){
+  if(answers[qIdx].given!==null) return;
+  const q=allQ[qIdx]; answers[qIdx]={given:i,correct:i===q.correct};
+  renderQ(); showFB(q);
+}
+
+function showFB(q){
+  const ans=answers[qIdx]; const fb=document.getElementById('fb');
+  if(q.type==='reading') return;
+  let ca='';
+  if(q.type==='wordorder') ca='"'+q.correct+'"';
+  else if(q.type==='grouping') ca=q.catA+': '+((q.groupA||[]).map(i=>q.words[i]).join(', '))+' / '+q.catB+': '+((q.groupB||[]).map(i=>q.words[i]).join(', '));
+  else if(q.type==='odd'||q.type==='sounds') ca='"'+(q.words||[])[q.correct]+'"';
+  else if(q.type==='sentence_completion') ca='"'+((q.opts||[])[q.correct]||'').replace(/^[A-B]\.\s*/,'')+'"';
+  else ca='"'+((q.opts||[])[q.correct]||'').replace(/^[A-D]\.\s*/,'')+'"';
+  fb.className='fb '+(ans.correct?'ok':'bad');
+  fb.innerHTML=ans.correct?'&#9989; Correct! '+(q.explanation||''):'&#10060; Correct answer: '+ca+'. '+(q.explanation||'');
+}
+
+function doSkip(){answers[qIdx]={given:-1,correct:false};advance();}
+function doNext(){if(answers[qIdx].given===null)return;advance();}
+function advance(){
+  const prev=allQ[qIdx]?allQ[qIdx].section:null; qIdx++;
+  if(qIdx>=allQ.length){showResults();return;}
+  if(allQ[qIdx].section!==prev) showSecIntro(); else renderQ();
+}
+
+function pctCls(p){return p>=80?'strong':p>=50?'medium':'weak';}
+function pctColor(p){return p>=80?'#276d3a':p>=60?'#1a7a8a':p>=45?'#c68a00':'#9b2e2e';}
+function pctBadge(p){return p>=80?'Strong':p>=50?'Review needed':'Priority area';}
+
+function showResults(){
+  clearInterval(elapsedIv); show('s-results');
+  let cp=0,tp=0;
+  allQ.forEach((q,i)=>{
+    if(q.type==='reading'){const gl=(q.gaps||[]).length;tp+=gl;(q.gaps||[]).forEach((g,gi)=>{if(clozeAns['c'+i+'_'+gi]===g.correct)cp++;});}
+    else{tp++;if(answers[i].correct)cp++;}
+  });
+  const pct=Math.round(cp/tp*100);
+  const elapsed=Math.round((Date.now()-startEpoch)/1000);
+  const pass=pct>=70;
+  const secStats={};
+  allQ.forEach((q,i)=>{
+    if(!secStats[q.section])secStats[q.section]={c:0,t:0,skipped:0,name:secDefOf(q.section).name||q.section};
+    if(q.type==='reading'){const gl=(q.gaps||[]).length;secStats[q.section].t+=gl;(q.gaps||[]).forEach((g,gi)=>{if(clozeAns['c'+i+'_'+gi]===g.correct)secStats[q.section].c++;});}
+    else{secStats[q.section].t++;if(answers[i].correct)secStats[q.section].c++;if(answers[i].given===-1)secStats[q.section].skipped++;}
+  });
+  const secArr=Object.entries(secStats).map(([id,st])=>({id,name:st.name,c:st.c,t:st.t,skipped:st.skipped,pct:st.t>0?Math.round(st.c/st.t*100):0})).sort((a,b)=>a.pct-b.pct);
+  const bi=pct>=90?{zone:5,label:'Excellent',color:'#276d3a',bg:'#e6f4ea',border:'#7bc88a',est:'Estimated official score: 85&#8211;100%',desc:'Outstanding maritime English. Fully ready for the official test.'}:
+    pct>=75?{zone:4,label:'Good',color:'#1a7a8a',bg:'#e0f4f7',border:'#5bb8cc',est:'Estimated official score: 70&#8211;85%',desc:'Strong competency. Ready for most seafarer roles with minor gaps.'}:
+    pct>=60?{zone:3,label:'Satisfactory',color:'#c68a00',bg:'#fef9e7',border:'#f0c040',est:'Estimated official score: 55&#8211;70%',desc:'Acceptable level. Targeted review of weak sections recommended before the official test.'}:
+    pct>=45?{zone:2,label:'Needs improvement',color:'#c05a00',bg:'#fdf3e3',border:'#e09040',est:'Estimated official score: 40&#8211;55%',desc:'Below standard for most shipping companies. Dedicated study needed before the official test.'}:
+    {zone:1,label:'Insufficient',color:'#9b2e2e',bg:'#fce8e8',border:'#e88a8a',est:'Estimated official score: below 45%',desc:'Significant improvement required. Intensive English study strongly recommended.'};
+
+  const needle=Math.min(97,Math.max(3,pct));
+  let h='<div class="r-hero">';
+  h+='<div class="r-ring '+(pass?'pass':'fail')+'"><span class="rpct">'+pct+'%</span><span class="rlbl">'+(pass?'PASS':'FAIL')+'</span></div>';
+  h+='<div class="verdict '+(pass?'pass':'fail')+'">'+(pass?'&#10003; Competency demonstrated':'&#10007; Further preparation needed')+'</div>';
+  h+='<p class="r-meta">'+cp+' / '+tp+' correct &#183; Time: '+Math.floor(elapsed/60)+'m '+(elapsed%60)+'s</p></div>';
+  h+='<div class="gauge-wrap"><div class="gauge-header"><span class="gauge-lbl">Readiness score</span><span class="gauge-score" style="color:'+bi.color+'">'+pct+'%</span></div>';
+  h+='<div class="gauge-track"><div class="gauge-needle" style="left:'+needle+'%"></div></div>';
+  h+='<div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin:4px 0 8px;padding:0 2px"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>';
+  h+='<div class="band-zones">'+['0&#8211;44%','45&#8211;59%','60&#8211;74%','75&#8211;89%','90&#8211;100%'].map((z,i)=>'<div class="bzone z'+(i+1)+(bi.zone===i+1?' active-zone':'')+'" title="'+z+'">'+z+'</div>').join('')+'</div>';
+  h+='<div class="band-desc-box" style="background:'+bi.bg+';border-color:'+bi.border+'"><div style="font-size:14px;font-weight:700;color:'+bi.color+'">'+bi.label+'</div><div style="font-size:13px;margin-top:4px;color:#1a1a2e">'+bi.desc+'</div><div style="font-size:12px;margin-top:4px;font-style:italic;color:'+bi.color+'">'+bi.est+'</div></div></div>';
+  h+='<div class="sec-scores-wrap"><h3>Score by section</h3>';
+  secArr.forEach(s=>{
+    const col=pctColor(s.pct); const cls=pctCls(s.pct);
+    h+='<div class="ss-row"><span class="ss-name">'+s.name+(s.skipped>0?' <span style="font-size:11px;color:#aaa">('+s.skipped+' skipped)</span>':'')+'</span><div class="ss-track"><div class="ss-fill" style="width:'+s.pct+'%;background:'+col+'"></div></div><div class="ss-right"><span class="ss-pct" style="color:'+col+'">'+s.pct+'%</span><span class="ss-note '+cls+'">'+pctBadge(s.pct)+'</span></div></div>';
+  });
+  h+='</div><div class="weak-wrap"><h3>What to work on</h3>';
+  secArr.forEach(s=>{
+    const cls=pctCls(s.pct); const tips=(WEAK_TIPS[s.id]&&WEAK_TIPS[s.id][cls])||[];
+    h+='<div class="weak-card '+cls+'"><div class="wk-head"><span class="wk-title '+cls+'">'+s.name+'</span><span class="wk-badge '+cls+'">'+s.pct+'% &#8212; '+pctBadge(s.pct)+'</span></div>';
+    h+='<div class="wk-bar-row"><div class="wk-track"><div class="wk-fill '+cls+'" style="width:'+s.pct+'%"></div></div><span style="font-size:12px;font-weight:700;color:'+pctColor(s.pct)+'">'+s.pct+'%</span></div>';
+    if(tips.length) h+='<div class="wk-tips">'+tips.map(t=>'<div class="wk-tip '+cls+'"><span class="tip-icon">'+(cls==='strong'?'&#10003;':'&#8594;')+'</span><span>'+t+'</span></div>').join('')+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  const weakS=secArr.filter(s=>s.pct<60),medS=secArr.filter(s=>s.pct>=60&&s.pct<75);
+  if(weakS.length||medS.length){
+    h+='<div class="study-wrap"><h3>Personalised study plan</h3>';
+    let n=1;
+    weakS.forEach(s=>{h+='<div class="study-item"><div class="study-num">'+n+'</div><div class="study-text"><strong>Priority &#8212; '+s.name+' ('+s.pct+'%)</strong><br>Your weakest section. Use the improvement tips above daily before retaking.</div></div>';n++;});
+    medS.forEach(s=>{h+='<div class="study-item"><div class="study-num">'+n+'</div><div class="study-text"><strong>Review &#8212; '+s.name+' ('+s.pct+'%)</strong><br>Nearly there. Targeted practice will consolidate this section.</div></div>';n++;});
+    if(pct<75) h+='<div class="study-item"><div class="study-num">'+n+'</div><div class="study-text"><strong>Retake this practice test</strong> after studying. Aim for 75%+ before the official test.</div></div>';
+    h+='</div>';
+  }
+  const secOrder=[...new Set(allQ.map(q=>q.section))];
+  h+='<div style="margin-top:1.25rem">';
+  secOrder.forEach(sid=>{
+    h+='<div class="review-block"><h3>'+secDefOf(sid).name+'</h3>';
+    allQ.forEach((q,i)=>{
+      if(q.section!==sid) return;
+      const ans=answers[i]; const pass2=ans.correct;
+      let qt='',ya='',ca='';
+      if(q.type==='reading'){let cc=0;(q.gaps||[]).forEach((g,gi)=>{if(clozeAns['c'+i+'_'+gi]===g.correct)cc++;});qt='Reading: '+(q.topic||'passage');ya=cc+'/'+(q.gaps||[]).length+' gaps correct';}
+      else if(q.type==='wordorder'){qt=q.question;ya=ans.given===-1?'(skipped)':ans.given||'(blank)';ca=q.correct;}
+      else if(q.type==='grouping'){qt=q.question;ya=ans.given===-1?'(skipped)':typeof ans.given==='object'?(q.catA+': '+(ans.given.A||[]).map(x=>q.words[x]).join(', ')+' / '+q.catB+': '+(ans.given.B||[]).map(x=>q.words[x]).join(', ')):'(unanswered)';ca=q.catA+': '+((q.groupA||[]).map(x=>q.words[x]).join(', '))+' / '+q.catB+': '+((q.groupB||[]).map(x=>q.words[x]).join(', '));}
+      else if(q.type==='odd'||q.type==='sounds'){qt=q.question;ya=ans.given===-1?'(skipped)':ans.given>=0?(q.words||[])[ans.given]:'?';ca=(q.words||[])[q.correct]||'';}
+      else if(q.type==='sentence_completion'){qt=(q.audioScript||'');ya=ans.given===-1?'(skipped)':ans.given>=0?((q.opts||[])[ans.given]||'').replace(/^[A-B]\.\s*/,''):'?';ca=((q.opts||[])[q.correct]||'').replace(/^[A-B]\.\s*/,'');}
+      else{qt=q.question;ya=ans.given===-1?'(skipped)':ans.given>=0?((q.opts||[])[ans.given]||'').replace(/^[A-D]\.\s*/,''):'?';ca=((q.opts||[])[q.correct]||'').replace(/^[A-D]\.\s*/,'');}
+      h+='<div class="ritem '+(pass2?'rp':'rf')+'"><div class="rq">'+(i+1)+'. '+qt+'</div>';
+      h+='<div class="ra '+(pass2?'ok':'bad')+'">'+(pass2?'&#10003;':'&#10007;')+' Your answer: '+ya+'</div>';
+      if(!pass2&&ca) h+='<div class="rc">&#10003; Correct: '+ca+'</div>';
+      if(q.explanation&&!pass2) h+='<div class="rexpl">'+q.explanation+'</div>';
+      h+='</div>';
+    });
+    h+='</div>';
+  });
+  h+='</div>';
+  h+='<div class="btn-pair"><button class="btn-sec2" onclick="restart()">&#8635; New test</button><button class="btn-pri2" onclick="goHome()">&#8962; Home</button></div>';
+  h+='<div class="disc">Practice tool only. Not affiliated with ICS Marlins or any official testing body. All questions are AI-generated originals. Scores are indicative estimates only.</div>';
+  document.getElementById('results-html').innerHTML=h;
+}
+
+function restart(){clearInterval(elapsedIv);elapsedIv=null;startGen();}
+function goHome(){clearInterval(elapsedIv);elapsedIv=null;show('s-cover');}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+</script>
+</body>
+</html>
